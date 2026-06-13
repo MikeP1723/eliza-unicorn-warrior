@@ -751,25 +751,85 @@ function drawPlayer() {
   ctx.roundRect(-7, -58, 14, 14, 3);
   ctx.fill();
 
-  // Arms
-  ctx.fillStyle = C.elizaSkin;
-  // front arm
-  const armSwing = player.attacking ? -30 : Math.sin(player.legAnim) * 12;
-  ctx.save();
-  ctx.translate(5, -55);
-  ctx.rotate((armSwing * Math.PI) / 180);
-  ctx.beginPath();
-  ctx.roundRect(-3, 0, 6, 14, 2);
-  ctx.fill();
-  ctx.restore();
+  // Arms + wand
+  const armSwing = player.attacking ? -75 : Math.sin(player.legAnim) * 12;
 
-  // back arm
+  // Back arm (behind body)
   ctx.save();
   ctx.translate(-7, -55);
   ctx.rotate((-Math.sin(player.legAnim) * 12 * Math.PI) / 180);
+  ctx.fillStyle = C.elizaSkin;
   ctx.beginPath();
   ctx.roundRect(-3, 0, 6, 12, 2);
   ctx.fill();
+  ctx.restore();
+
+  // Front arm + wand
+  ctx.save();
+  ctx.translate(5, -55);
+  ctx.rotate((armSwing * Math.PI) / 180);
+
+  // Arm
+  ctx.fillStyle = C.elizaSkin;
+  ctx.beginPath();
+  ctx.roundRect(-3, 0, 6, 14, 2);
+  ctx.fill();
+
+  // Wand stick
+  ctx.fillStyle = '#7c3505';
+  ctx.beginPath();
+  ctx.roundRect(-1.5, 13, 3, 22, 1.5);
+  ctx.fill();
+  ctx.strokeStyle = '#a16207'; ctx.lineWidth = 0.8; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0.5, 14); ctx.lineTo(0.5, 34); ctx.stroke();
+
+  // Star tip — pulsing size when attacking
+  const starY = 35;
+  const starR = player.attacking ? 7 : 5;
+
+  // Purple glow behind star when attacking
+  if (player.attacking) {
+    const p = 1 - player.attackTimer / ATTACK_DURATION;
+    ctx.globalAlpha = Math.max(0, 0.75 - p * 0.6);
+    const grad = ctx.createRadialGradient(0, starY, 0, 0, starY, 20);
+    grad.addColorStop(0, '#e879f9');
+    grad.addColorStop(0.5, '#a855f7');
+    grad.addColorStop(1, 'rgba(168,85,247,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(0, starY, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = flash ? 0.4 : 1;
+  }
+
+  // 5-pointed star
+  ctx.fillStyle = player.attacking ? '#fef08a' : '#fbbf24';
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const ang = (i * Math.PI) / 5 - Math.PI / 2;
+    const r = i % 2 === 0 ? starR : starR * 0.42;
+    i === 0
+      ? ctx.moveTo(Math.cos(ang) * r, starY + Math.sin(ang) * r)
+      : ctx.lineTo(Math.cos(ang) * r, starY + Math.sin(ang) * r);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#d97706'; ctx.lineWidth = 0.8; ctx.stroke();
+
+  // Orbiting sparkles when attacking
+  if (player.attacking) {
+    const p = 1 - player.attackTimer / ATTACK_DURATION;
+    ctx.globalAlpha = Math.max(0, 0.9 - p * 1.1);
+    const t2 = Date.now() / 150;
+    [0,1,2,3,4].forEach(i => {
+      const ang = t2 + (i * Math.PI * 2) / 5;
+      const r = 11 + Math.sin(t2 * 2 + i) * 4;
+      ctx.fillStyle = i % 2 === 0 ? '#fde68a' : '#e879f9';
+      ctx.beginPath();
+      ctx.arc(Math.cos(ang) * r, starY + Math.sin(ang) * r, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = flash ? 0.4 : 1;
+  }
+
   ctx.restore();
 
   // Head
@@ -798,14 +858,14 @@ function drawPlayer() {
   ctx.arc(4.7, -64.6, 0.7, 0, Math.PI * 2);
   ctx.fill();
 
-  // Attack arc (sweeps from horn tip)
+  // Attack arc (sweeps from wand star tip)
   if (player.attacking) {
     const progress = 1 - player.attackTimer / ATTACK_DURATION;
     ctx.strokeStyle = C.attackArc;
     ctx.lineWidth = 3;
     ctx.globalAlpha = 1 - progress;
     ctx.beginPath();
-    ctx.arc(27, -92, 62, -Math.PI * 0.65, Math.PI * 0.18);
+    ctx.arc(38, -46, 58, -Math.PI * 0.55, Math.PI * 0.3);
     ctx.stroke();
     ctx.globalAlpha = flash ? 0.4 : 1;
     ctx.lineWidth = 1;
