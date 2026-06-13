@@ -21,7 +21,7 @@ function saveHighScore() {
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 const keys = {};
-window.addEventListener('keydown', e => { keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keydown', e => { keys[e.code] = true; e.preventDefault(); initAudio(); });
 window.addEventListener('keyup',   e => { keys[e.code] = false; });
 
 function pressed(codes) { return codes.some(c => keys[c]); }
@@ -56,7 +56,7 @@ function updateTouchKeys(e) {
   });
 }
 
-canvas.addEventListener('touchstart',  updateTouchKeys, { passive: false });
+canvas.addEventListener('touchstart', e => { initAudio(); updateTouchKeys(e); }, { passive: false });
 canvas.addEventListener('touchmove',   updateTouchKeys, { passive: false });
 canvas.addEventListener('touchend',    e => {
   if (gameState === 'start' || gameState === 'dead') { resetGame(); e.preventDefault(); return; }
@@ -87,6 +87,134 @@ function drawTouchControls() {
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
   ctx.restore();
+}
+
+// ─── Audio ────────────────────────────────────────────────────────────────────
+let audioCtx = null;
+let musicGain = null;
+let sfxGain = null;
+
+const BPM = 138;
+const BEAT = 60 / BPM;
+
+const N = {
+  _:0,
+  C4:261.6, D4:293.7, E4:329.6, F4:349.2, G4:392.0, A4:440.0,
+  C5:523.3, D5:587.3, E5:659.3, G5:784.0, A5:880.0, B5:987.8,
+  C6:1046.5,
+};
+
+// 16-beat melody loop (all bars = 4 beats)
+const MELODY = [
+  [N.E5,1],[N.G5,.5],[N.A5,.5],[N.C6,.5],[N.B5,.5],[N.A5,.5],[N.G5,.5],  // bar 1
+  [N.E5,1],[N._,.5], [N.G5,.5],[N.A5,1], [N._,1],                         // bar 2
+  [N.G5,.5],[N.A5,.5],[N.C6,.5],[N.A5,.5],[N.G5,.5],[N.E5,.5],[N.G5,1],  // bar 3
+  [N.E5,2], [N._,2],                                                        // bar 4
+];
+
+// 16-beat bass loop
+const BASS = [
+  [N.C4,2],[N.G4,2],   // bar 1
+  [N.A4,2],[N.E4,2],   // bar 2
+  [N.C4,2],[N.G4,2],   // bar 3
+  [N.F4,2],[N.G4,2],   // bar 4
+];
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = audioCtx.createGain();
+  master.gain.value = 0.55;
+  master.connect(audioCtx.destination);
+  musicGain = audioCtx.createGain();
+  musicGain.gain.value = 0.22;
+  musicGain.connect(master);
+  sfxGain = audioCtx.createGain();
+  sfxGain.gain.value = 0.55;
+  sfxGain.connect(master);
+  scheduleMusicLoop(audioCtx.currentTime + 0.1);
+}
+
+function scheduleNote(freq, when, dur, type, amp, dest) {
+  if (!freq) return;
+  const osc = audioCtx.createOscillator();
+  const env = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  env.gain.setValueAtTime(0, when);
+  env.gain.linearRampToValueAtTime(amp, when + 0.01);
+  env.gain.setValueAtTime(amp, when + dur * 0.78);
+  env.gain.linearRampToValueAtTime(0, when + dur * 0.96);
+  osc.connect(env);
+  env.connect(dest);
+  osc.start(when);
+  osc.stop(when + dur + 0.02);
+}
+
+function scheduleMusicLoop(startTime) {
+  let t = startTime;
+  let total = 0;
+  MELODY.forEach(([freq, beats]) => {
+    const d = beats * BEAT;
+    scheduleNote(freq, t, d * 0.9, 'square', 0.45, musicGain);
+    t += d; total += d;
+  });
+  let bt = startTime;
+  BASS.forEach(([freq, beats]) => {
+    const d = beats * BEAT;
+    scheduleNote(freq, bt, d * 0.82, 'triangle', 0.55, musicGain);
+    bt += d;
+  });
+  setTimeout(() => scheduleMusicLoop(startTime + total), (total - 0.25) * 1000);
+}
+
+function sfx(f0, f1, dur, type, amp) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const env = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(f0, t);
+  osc.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  env.gain.setValueAtTime(amp, t);
+  env.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  osc.connect(env); env.connect(sfxGain);
+  osc.start(t); osc.stop(t + dur + 0.02);
+}
+
+function sfxJump()       { sfx(300, 580, 0.14, 'square',   0.5); }
+function sfxAttack()     { sfx(680, 160, 0.17, 'sawtooth', 0.5); }
+function sfxEnemyHit()   { sfx(220, 100, 0.11, 'square',   0.4); }
+function sfxPlayerHurt() { sfx(160,  80, 0.32, 'sawtooth', 0.6); }
+
+function sfxEnemyDie() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  [700, 560, 420].forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    const env = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    env.gain.setValueAtTime(0.35, t + i * 0.07);
+    env.gain.exponentialRampToValueAtTime(0.001, t + i * 0.07 + 0.13);
+    osc.connect(env); env.connect(sfxGain);
+    osc.start(t + i * 0.07); osc.stop(t + i * 0.07 + 0.15);
+  });
+}
+
+function sfxGameOver() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  [[330,0],[262,.38],[220,.76],[165,1.15]].forEach(([freq, off]) => {
+    const osc = audioCtx.createOscillator();
+    const env = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    env.gain.setValueAtTime(0.5, t + off);
+    env.gain.exponentialRampToValueAtTime(0.001, t + off + 0.42);
+    osc.connect(env); env.connect(sfxGain);
+    osc.start(t + off); osc.stop(t + off + 0.45);
+  });
 }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -207,6 +335,7 @@ function playerUpdate() {
   if (pressed(['ArrowUp', 'KeyW']) && player.onGround) {
     player.vy = JUMP_FORCE;
     player.onGround = false;
+    sfxJump();
   }
 
   // Attack
@@ -214,6 +343,7 @@ function playerUpdate() {
     player.attacking = true;
     player.attackTimer = ATTACK_DURATION;
     player.attackCooldown = ATTACK_COOLDOWN;
+    sfxAttack();
     spawnParticles(
       player.x + player.facing * 30,
       player.y - player.h * 0.6,
@@ -392,9 +522,11 @@ function updateEnemies() {
         if (e.hp <= 0) {
           e.dead = true;
           player.score += e.score;
+          sfxEnemyDie();
           spawnParticles(e.x, e.y - e.h / 2, 14);
           continue;
         }
+        sfxEnemyHit();
       }
     }
     if (e.hitTimer > 0) e.hitTimer--;
@@ -405,9 +537,11 @@ function updateEnemies() {
       if (rectsOverlap(playerBox, eBox)) {
         player.hp--;
         player.invincible = 60;
+        sfxPlayerHurt();
         spawnParticles(player.x, player.y - player.h / 2, 5);
         if (player.hp <= 0) {
           player.dead = true;
+          sfxGameOver();
         }
       }
     }
