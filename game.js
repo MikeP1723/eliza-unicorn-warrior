@@ -11,12 +11,12 @@ const HS_KEY = 'eliza_high_score';
 let highScore = parseInt(localStorage.getItem(HS_KEY) || '0', 10);
 
 function saveHighScore() {
-  if (player.score > highScore) {
-    highScore = player.score;
+  const { best, isNew } = computeHighScore(player.score, highScore);
+  if (isNew) {
+    highScore = best;
     localStorage.setItem(HS_KEY, highScore);
-    return true;
   }
-  return false;
+  return isNew;
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
@@ -310,7 +310,7 @@ const player = {
 
 const ATTACK_DURATION = 18;
 const ATTACK_COOLDOWN = 28;
-const ATTACK_REACH = 110;
+// ATTACK_REACH comes from game-logic.js
 const JUMP_FORCE = -13;
 const MOVE_SPEED = 4;
 
@@ -389,42 +389,20 @@ function playerUpdate() {
 }
 
 // Attack hitbox in world space
-function attackHitbox() {
-  const cx = player.x + player.facing * (player.w * 0.5 + ATTACK_REACH * 0.4);
-  const cy = player.y - player.h * 0.55;
-  return { x: cx - ATTACK_REACH * 0.6, y: cy - 24, w: ATTACK_REACH * 1.2, h: 48 };
-}
+// rectsOverlap and calcAttackHitbox come from game-logic.js
+function attackHitbox() { return calcAttackHitbox(player); }
 
 // ─── Enemy helpers ────────────────────────────────────────────────────────────
-function rectsOverlap(a, b) {
-  return a.x < b.x + b.w && a.x + a.w > b.x &&
-         a.y < b.y + b.h && a.y + a.h > b.y;
-}
 
 // ─── Enemies ──────────────────────────────────────────────────────────────────
 const enemies = [];
 
+// Merge ENEMY_STATS (from game-logic.js) with palette colours
 const ENEMY_TYPES = {
-  spider: {
-    w: 28, h: 20, hp: 2, speed: 1.2, score: 100,
-    groundOnly: true, flying: false,
-    color: C.spider, legColor: C.spiderLeg,
-  },
-  moth: {
-    w: 30, h: 22, hp: 1, speed: 1.8, score: 150,
-    groundOnly: false, flying: true,
-    color: C.moth, wingColor: C.mothWing,
-  },
-  roach: {
-    w: 32, h: 18, hp: 3, speed: 2.0, score: 120,
-    groundOnly: true, flying: false,
-    color: C.roach, bodyColor: C.roachBody,
-  },
-  hedgehog: {
-    w: 30, h: 26, hp: 4, speed: 0.9, score: 200,
-    groundOnly: true, flying: false,
-    color: C.hedgehog, spikeColor: C.hedgehogSpike,
-  },
+  spider:   { ...ENEMY_STATS.spider,   color: C.spider,   legColor:  C.spiderLeg  },
+  moth:     { ...ENEMY_STATS.moth,     color: C.moth,     wingColor: C.mothWing   },
+  roach:    { ...ENEMY_STATS.roach,    color: C.roach,    bodyColor: C.roachBody  },
+  hedgehog: { ...ENEMY_STATS.hedgehog, color: C.hedgehog, spikeColor:C.hedgehogSpike },
 };
 
 let enemySpawnTimer = 0;
