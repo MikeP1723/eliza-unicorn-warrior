@@ -1,0 +1,7 @@
+services:
+  eliza-unicorn-warrior:
+    build: .
+    container_name: eliza-unicorn-warrior
+    ports:
+      - "8080:80"
+    restart: unless-stopped
