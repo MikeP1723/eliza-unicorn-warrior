@@ -473,89 +473,127 @@ function drawPlayer() {
   ctx.scale(f, 1);
   if (flash) ctx.globalAlpha = 0.4;
 
-  // Leg animation offsets
-  const leg = Math.sin(player.legAnim) * 10;
+  const gallop = player.legAnim;
 
-  // ── Unicorn body ──
+  // ── Unicorn ──
+
+  function drawHorseLeg(ox, phase) {
+    const swing   = Math.sin(gallop + phase) * 13;
+    const airLift = player.onGround ? 0 : (player.vy < 0 ? -5 : 4);
+    const kx = ox + swing * 0.6,  ky = -20 + airLift;
+    const hx = kx - swing * 0.35, hy = ky + 20;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = C.unicornBody;
+    ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(ox, -6); ctx.lineTo(kx, ky); ctx.stroke();
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(hx, hy); ctx.stroke();
+    ctx.fillStyle = '#7c3aed';
+    ctx.beginPath(); ctx.ellipse(hx, hy + 2, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
   // Tail
-  ctx.fillStyle = C.unicornMane;
-  ctx.beginPath();
-  ctx.ellipse(-22, -14 + Math.sin(player.legAnim * 0.7) * 4, 8, 5, -0.4, 0, Math.PI * 2);
-  ctx.fill();
+  const tailSway = Math.sin(gallop * 0.7);
+  ['#e879f9', '#d946ef', '#c026d3'].forEach((col, i) => {
+    const tw = tailSway + i * 0.5;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 5 - i * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-26, -22 - i * 3);
+    ctx.quadraticCurveTo(-40 + tw * 10, -6 + i * 3, -44 + tw * 8, 0);
+    ctx.stroke();
+  });
 
-  // Body
+  // Hind legs (behind body)
+  drawHorseLeg(-16, 0);
+  drawHorseLeg(-8,  Math.PI);
+
+  // Body – proper horse silhouette with bezier curves
   ctx.fillStyle = C.unicornBody;
   ctx.beginPath();
-  ctx.ellipse(-5, -20, 24, 15, 0.1, 0, Math.PI * 2);
+  ctx.moveTo(-28, -10);
+  ctx.bezierCurveTo(-33, -18, -34, -34, -26, -42);   // rump
+  ctx.bezierCurveTo(-16, -48, -4, -48, 8, -46);       // topline
+  ctx.bezierCurveTo(16,  -44, 20, -40, 20, -34);      // withers/shoulder
+  ctx.lineTo(20, -16);
+  ctx.bezierCurveTo(12, -8, -4, -7, -18, -8);         // belly
+  ctx.bezierCurveTo(-24, -9, -27, -10, -28, -10);
+  ctx.closePath();
   ctx.fill();
+  ctx.strokeStyle = '#e9d5ff33'; ctx.lineWidth = 1; ctx.stroke();
+
+  // Front legs (over body)
+  drawHorseLeg(8,  Math.PI * 0.5);
+  drawHorseLeg(16, Math.PI * 1.5);
 
   // Neck
   ctx.fillStyle = C.unicornBody;
   ctx.beginPath();
-  ctx.ellipse(14, -32, 9, 14, 0.3, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Head
-  ctx.fillStyle = C.unicornBody;
-  ctx.beginPath();
-  ctx.ellipse(20, -44, 11, 9, -0.1, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Horn
-  ctx.fillStyle = C.unicornHorn;
-  ctx.beginPath();
-  ctx.moveTo(28, -52);
-  ctx.lineTo(24, -46);
-  ctx.lineTo(32, -46);
+  ctx.moveTo(10, -36);
+  ctx.bezierCurveTo(12, -50, 16, -58, 16, -64);
+  ctx.bezierCurveTo(20, -64, 24, -60, 24, -54);
+  ctx.bezierCurveTo(22, -44, 18, -38, 14, -36);
   ctx.closePath();
   ctx.fill();
-  // Horn shimmer
+  ctx.strokeStyle = '#e9d5ff33'; ctx.lineWidth = 1; ctx.stroke();
+
+  // Head – elongated horse profile
+  ctx.fillStyle = C.unicornBody;
+  ctx.beginPath();
+  ctx.moveTo(16, -64);
+  ctx.bezierCurveTo(18, -72, 22, -74, 26, -74);   // poll
+  ctx.bezierCurveTo(32, -74, 38, -71, 42, -66);   // nose bridge
+  ctx.bezierCurveTo(44, -62, 42, -57, 38, -56);   // muzzle tip
+  ctx.bezierCurveTo(32, -55, 24, -57, 18, -60);   // jaw
+  ctx.bezierCurveTo(15, -62, 15, -64, 16, -64);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#e9d5ff33'; ctx.lineWidth = 1; ctx.stroke();
+
+  // Nostril
+  ctx.fillStyle = '#d8b4fe';
+  ctx.beginPath(); ctx.ellipse(40, -59, 2.5, 2, 0.4, 0, Math.PI * 2); ctx.fill();
+
+  // Ear
+  ctx.fillStyle = C.unicornBody;
+  ctx.beginPath(); ctx.moveTo(22,-73); ctx.lineTo(19,-82); ctx.lineTo(26,-76); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#f0abfc';
+  ctx.beginPath(); ctx.moveTo(22,-73); ctx.lineTo(20,-79); ctx.lineTo(25,-75); ctx.closePath(); ctx.fill();
+
+  // Horn – tall with spiral stripe
+  ctx.fillStyle = C.unicornHorn;
+  ctx.beginPath(); ctx.moveTo(23,-73); ctx.lineTo(30,-73); ctx.lineTo(27,-96); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#d97706'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(25, -75);
+  ctx.quadraticCurveTo(31, -81, 25, -86);
+  ctx.quadraticCurveTo(30, -91, 27, -96);
+  ctx.stroke();
+
+  // Horn charge glow when attacking
   if (player.attacking) {
-    ctx.fillStyle = '#fde68a88';
-    ctx.beginPath();
-    ctx.moveTo(28, -62);
-    ctx.lineTo(20, -48);
-    ctx.lineTo(36, -48);
-    ctx.closePath();
-    ctx.fill();
+    const p = 1 - player.attackTimer / ATTACK_DURATION;
+    ctx.fillStyle = `rgba(253,230,138,${0.55 - p * 0.45})`;
+    ctx.beginPath(); ctx.moveTo(19,-73); ctx.lineTo(34,-73); ctx.lineTo(27,-114); ctx.closePath(); ctx.fill();
   }
 
   // Eye
   ctx.fillStyle = '#4c1d95';
-  ctx.beginPath();
-  ctx.arc(25, -46, 2.5, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.beginPath(); ctx.arc(34, -65, 3, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(25.8, -46.5, 0.9, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.beginPath(); ctx.arc(35.2, -65.8, 1.2, 0, Math.PI * 2); ctx.fill();
 
-  // Mane
-  ctx.fillStyle = C.unicornMane;
-  ctx.beginPath();
-  ctx.ellipse(16, -42, 5, 9, 0.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Legs
-  const legY = player.onGround ? 0 : (player.vy < 0 ? -6 : 6);
-
-  function drawLeg(ox, phase) {
-    const swing = Math.sin(player.legAnim + phase) * 10;
-    ctx.fillStyle = C.unicornBody;
+  // Mane – flowing strands along neck
+  ['#e879f9', '#a855f7', '#d946ef', '#7c3aed'].forEach((col, i) => {
+    const wave = Math.sin(gallop * 0.9 + i * 0.7) * 5;
+    ctx.strokeStyle = col; ctx.lineWidth = 4 - i * 0.6; ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.roundRect(ox - 4, -8 + legY, 8, 20 + swing * 0.3, 3);
-    ctx.fill();
-    // hoof
-    ctx.fillStyle = '#a78bfa';
-    ctx.beginPath();
-    ctx.ellipse(ox, 12 + swing * 0.3 + legY, 5, 3, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  drawLeg(-18, 0);
-  drawLeg(-8, Math.PI);
-  drawLeg(4, Math.PI * 0.5);
-  drawLeg(14, Math.PI * 1.5);
+    ctx.moveTo(17 - i * 0.5, -64);
+    ctx.quadraticCurveTo(12 + wave - i, -54, 10 + wave * 0.5, -44);
+    ctx.stroke();
+  });
+  ctx.lineCap = 'butt';
 
   // ── Eliza (rider) ──
   // Boot / legs
@@ -626,14 +664,14 @@ function drawPlayer() {
   ctx.arc(4.7, -64.6, 0.7, 0, Math.PI * 2);
   ctx.fill();
 
-  // Attack arc
+  // Attack arc (sweeps from horn tip)
   if (player.attacking) {
     const progress = 1 - player.attackTimer / ATTACK_DURATION;
     ctx.strokeStyle = C.attackArc;
     ctx.lineWidth = 3;
     ctx.globalAlpha = 1 - progress;
     ctx.beginPath();
-    ctx.arc(18, -46, ATTACK_REACH * 0.85, -Math.PI * 0.6, Math.PI * 0.1);
+    ctx.arc(27, -92, 62, -Math.PI * 0.65, Math.PI * 0.18);
     ctx.stroke();
     ctx.globalAlpha = flash ? 0.4 : 1;
     ctx.lineWidth = 1;
